@@ -7,12 +7,15 @@ allowed-tools: Bash, Read, Write
 user-invocable: true
 author: FrancisCliment123
 license: MIT
+homepage: https://github.com/FrancisCliment123/reddit-feedback-skill
+repository: https://github.com/FrancisCliment123/reddit-feedback-skill
 metadata:
   openclaw:
     emoji: "📊"
     requires:
       bins:
         - node
+    homepage: https://github.com/FrancisCliment123/reddit-feedback-skill
     tags:
       - reddit
       - engagement
