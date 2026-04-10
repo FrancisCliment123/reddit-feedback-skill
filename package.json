@@ -1,0 +1,24 @@
+{
+  "name": "reddit-feedback",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FrancisCliment123/reddit-feedback-skill.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/FrancisCliment123/reddit-feedback-skill/issues"
+  },
+  "homepage": "https://github.com/FrancisCliment123/reddit-feedback-skill#readme",
+  "dependencies": {
+    "playwright": "^1.59.1"
+  }
+}
