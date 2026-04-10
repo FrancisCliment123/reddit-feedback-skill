@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
  * Reddit Comment Reply via Playwright + Chrome CDP
- * Uses a junction point to your real browser profile for session access.
+ * Uses a symlink/junction to your real browser profile for session access.
  * No API keys, no login needed — uses your existing Reddit session.
+ *
+ * Supports: Windows, macOS, Linux
  *
  * Usage:
  *   node reply.js <comment_permalink> "Your reply text" [--browser chrome|brave]
@@ -15,28 +17,84 @@ const fs = require('fs');
 const os = require('os');
 const http = require('http');
 
-const BROWSER_PATHS = {
-  chrome: {
-    exe: [
-      path.join(os.homedir(), 'AppData', 'Local', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    ],
-    userDataDir: path.join(os.homedir(), 'AppData', 'Local', 'Google', 'Chrome', 'User Data'),
-    junctionDir: path.join(os.homedir(), 'AppData', 'Local', 'Temp', 'chrome-debug-profile'),
-    process: 'chrome.exe',
-  },
-  brave: {
-    exe: [
-      path.join(os.homedir(), 'AppData', 'Local', 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
-      'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
-      'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
-    ],
-    userDataDir: path.join(os.homedir(), 'AppData', 'Local', 'BraveSoftware', 'Brave-Browser', 'User Data'),
-    junctionDir: path.join(os.homedir(), 'AppData', 'Local', 'Temp', 'brave-debug-profile'),
-    process: 'brave.exe',
-  },
-};
+const platform = os.platform(); // 'win32', 'darwin', 'linux'
+
+function getBrowserPaths() {
+  if (platform === 'darwin') {
+    return {
+      chrome: {
+        exe: [
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          path.join(os.homedir(), 'Applications', 'Google Chrome.app', 'Contents', 'MacOS', 'Google Chrome'),
+        ],
+        userDataDir: path.join(os.homedir(), 'Library', 'Application Support', 'Google', 'Chrome'),
+        linkDir: path.join(os.tmpdir(), 'chrome-debug-profile'),
+        processName: 'Google Chrome',
+      },
+      brave: {
+        exe: [
+          '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+          path.join(os.homedir(), 'Applications', 'Brave Browser.app', 'Contents', 'MacOS', 'Brave Browser'),
+        ],
+        userDataDir: path.join(os.homedir(), 'Library', 'Application Support', 'BraveSoftware', 'Brave-Browser'),
+        linkDir: path.join(os.tmpdir(), 'brave-debug-profile'),
+        processName: 'Brave Browser',
+      },
+    };
+  }
+
+  if (platform === 'linux') {
+    return {
+      chrome: {
+        exe: [
+          '/usr/bin/google-chrome',
+          '/usr/bin/google-chrome-stable',
+          '/snap/bin/chromium',
+          '/usr/bin/chromium-browser',
+        ],
+        userDataDir: path.join(os.homedir(), '.config', 'google-chrome'),
+        linkDir: path.join(os.tmpdir(), 'chrome-debug-profile'),
+        processName: 'chrome',
+      },
+      brave: {
+        exe: [
+          '/usr/bin/brave-browser',
+          '/usr/bin/brave-browser-stable',
+          '/snap/bin/brave',
+        ],
+        userDataDir: path.join(os.homedir(), '.config', 'BraveSoftware', 'Brave-Browser'),
+        linkDir: path.join(os.tmpdir(), 'brave-debug-profile'),
+        processName: 'brave',
+      },
+    };
+  }
+
+  // Windows (default)
+  return {
+    chrome: {
+      exe: [
+        path.join(os.homedir(), 'AppData', 'Local', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      ],
+      userDataDir: path.join(os.homedir(), 'AppData', 'Local', 'Google', 'Chrome', 'User Data'),
+      linkDir: path.join(os.homedir(), 'AppData', 'Local', 'Temp', 'chrome-debug-profile'),
+      processName: 'chrome.exe',
+    },
+    brave: {
+      exe: [
+        path.join(os.homedir(), 'AppData', 'Local', 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
+        'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+        'C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+      ],
+      userDataDir: path.join(os.homedir(), 'AppData', 'Local', 'BraveSoftware', 'Brave-Browser', 'User Data'),
+      linkDir: path.join(os.homedir(), 'AppData', 'Local', 'Temp', 'brave-debug-profile'),
+      processName: 'brave.exe',
+    },
+  };
+}
+
+const BROWSER_PATHS = getBrowserPaths();
 
 function findExe(browserName) {
   const paths = BROWSER_PATHS[browserName]?.exe || [];
@@ -48,17 +106,31 @@ function findExe(browserName) {
 
 function killBrowser(processName) {
   try {
-    execSync(`taskkill /F /IM ${processName} 2>NUL`, { stdio: 'ignore', shell: true });
+    if (platform === 'win32') {
+      execSync(`taskkill /F /IM ${processName} 2>NUL`, { stdio: 'ignore', shell: true });
+    } else {
+      // macOS / Linux — pkill by process name
+      execSync(`pkill -f "${processName}" 2>/dev/null`, { stdio: 'ignore', shell: true });
+    }
   } catch (e) {}
 }
 
-function createJunction(target, junction) {
-  // Remove existing junction
+function createLink(target, linkPath) {
+  // Remove existing link/junction
   try {
-    execSync(`rmdir "${junction}" 2>NUL`, { stdio: 'ignore', shell: true });
+    if (platform === 'win32') {
+      execSync(`rmdir "${linkPath}" 2>NUL`, { stdio: 'ignore', shell: true });
+    } else {
+      execSync(`rm -f "${linkPath}" 2>/dev/null`, { stdio: 'ignore', shell: true });
+    }
   } catch (e) {}
-  // Create new junction
-  execSync(`mklink /J "${junction}" "${target}"`, { stdio: 'ignore', shell: true });
+
+  // Create new link
+  if (platform === 'win32') {
+    execSync(`mklink /J "${linkPath}" "${target}"`, { stdio: 'ignore', shell: true });
+  } else {
+    execSync(`ln -s "${target}" "${linkPath}"`, { stdio: 'ignore', shell: true });
+  }
 }
 
 function sleep(ms) {
@@ -131,18 +203,18 @@ async function main() {
   try {
     // Step 1: Kill browser
     console.log('Step 1: Closing browser...');
-    killBrowser(config.process);
+    killBrowser(config.processName);
     await sleep(2000);
 
-    // Step 2: Create junction to real profile
-    console.log('Step 2: Setting up profile junction...');
-    createJunction(config.userDataDir, config.junctionDir);
+    // Step 2: Create symlink/junction to real profile
+    console.log('Step 2: Setting up profile link...');
+    createLink(config.userDataDir, config.linkDir);
 
     // Step 3: Launch browser with debugging
     console.log('Step 3: Launching browser...');
     const child = spawn(exePath, [
       `--remote-debugging-port=${DEBUG_PORT}`,
-      `--user-data-dir=${config.junctionDir}`,
+      `--user-data-dir=${config.linkDir}`,
       '--no-first-run',
       '--no-default-browser-check',
       '--disable-blink-features=AutomationControlled',
@@ -289,7 +361,7 @@ async function main() {
     if (browser) {
       await browser.close().catch(() => {});
     }
-    killBrowser(config.process);
+    killBrowser(config.processName);
   }
 }
 

@@ -109,7 +109,7 @@ Present the data completely and faithfully so the agent can make its own conclus
 node ~/.claude/skills/reddit-feedback/scripts/reply.js <comment_permalink> "reply text" [--browser chrome|brave]
 ```
 
-Uses Playwright to open the user's real browser (with existing Reddit session) and post a reply.
+Uses Playwright to open the user's real browser (with existing Reddit session) and post a reply. Works on **Windows, macOS, and Linux**.
 
 **Requirements:**
 - The browser (Chrome or Brave) must be CLOSED before running — Playwright needs exclusive access to the profile
@@ -119,6 +119,11 @@ Uses Playwright to open the user's real browser (with existing Reddit session) a
 **Supported browsers:**
 - `--browser chrome` (default)
 - `--browser brave`
+
+**Platform notes:**
+- **Windows**: Uses junction points (`mklink /J`) and `taskkill`
+- **macOS**: Uses symlinks (`ln -s`) and `pkill`. Browser paths: `/Applications/Google Chrome.app`, `/Applications/Brave Browser.app`
+- **Linux**: Uses symlinks (`ln -s`) and `pkill`. Browser paths: `/usr/bin/google-chrome`, `/usr/bin/brave-browser`
 
 **IMPORTANT:** Always ask the user for confirmation before replying. Show them the exact reply text and which comment you want to reply to. Never reply automatically without explicit approval.
 
