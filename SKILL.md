@@ -160,6 +160,10 @@ node ~/.claude/skills/reddit-feedback/scripts/multi-scrape.js <url1> <url2> ... 
 7. User posts manually (or via browser automation in future)
 ```
 
+## 5. Promotion guide: `PROMO-GUIDE.md`
+
+See [PROMO-GUIDE.md](PROMO-GUIDE.md) for a complete guide on promoting on Reddit without getting banned — covering rules, subreddit tiers, timing, writing style, account building, and a 30-day execution plan. When crafting posts via community analysis (Workflow B), always cross-reference this guide.
+
 ## Notes
 
 - **Scraping**: No API keys — uses Reddit's public `.json` endpoints
